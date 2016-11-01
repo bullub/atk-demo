@@ -18,7 +18,7 @@ module.exports = {
         //打开的页面
         url: "pages/test.html",
         //是否关闭浏览器同源策略
-        closeWebSecurity: true
+        closeWebSecurity: false
     },
     //编译时和监控源码时执行的任务
     runTasks: [

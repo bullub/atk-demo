@@ -396,16 +396,16 @@ gulp.task("watch", function () {
 gulp.task("open-browser", function () {
     let spawn = child_process.spawn,
         browserOpenConfig = envConfigs.browserOpenConfig,
-        openArgs = ['-a', 'Google\ Chrome', '--args', '--pinned-tab-count=1', ];
+        openArgs = ['-a', 'Google\ Chrome'];
 
     if(browserOpenConfig.closeWebSecurity) {
         openArgs.push('--disable-web-security', '--user-dir');
+        //杀掉原chrome程序
+        spawn('pkill', ['-9', 'Google\ Chrome']);
     }
 
-    openArgs.push('--pinned-tab-count=1', `http://localhost:${envConfigs.serverPort}/${configs.distRoot}/${runningEnvironment}/${browserOpenConfig.url || ''}`);
+    openArgs.push(`http://localhost:${envConfigs.serverPort}/${configs.distRoot}/${runningEnvironment}/${browserOpenConfig.url || ''}`);
 
-    //杀掉原chrome程序
-    spawn('pkill', ['-9', 'Google\ Chrome']);
     //打开指定页面
     spawn('open', openArgs);
 });
