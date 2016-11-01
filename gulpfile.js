@@ -399,7 +399,7 @@ gulp.task("open-browser", function () {
         openArgs = ['-a', 'Google\ Chrome'];
 
     if(browserOpenConfig.closeWebSecurity) {
-        openArgs.push('--disable-web-security', '--user-dir');
+        openArgs.push('--args', '--disable-web-security', '--user-dir');
         //杀掉原chrome程序
         spawn('pkill', ['-9', 'Google\ Chrome']);
     }
