@@ -22,11 +22,13 @@ module.exports = {
     atkIncludePaths: {
         "js": ["assets/lib","assets/lib/aladdin.components.extends", "assets/common", "components", "scripts"],
         "css": ["assets/css", "components"],
-        "tpl": ["templates"]
+        "tpl": ["templates"],
+        "vue": ["components"]
     },
     //atk伪指令对应的文件扩展名
     atkDirectiveExtensions: {
-        tpl: ".tpl"
+        tpl: ".tpl",
+        vue: ".vue"
     },
     //不做脚本语法严格检查的部分
     jshintIgnore: [
@@ -79,5 +81,6 @@ module.exports = {
         smarttabs: true,
         strict: false,
         evil: true
-    }
+    },
+    uglifyOptions: undefined
 };

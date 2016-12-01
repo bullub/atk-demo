@@ -10,7 +10,6 @@
 </style>
 <script>
   export default{
-    template: __gvptemplate,
     data(){
       return {
         msg: 'hello vue'

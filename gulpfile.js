@@ -196,18 +196,21 @@ gulp.task("clean", ["del"], function (next) {
 gulp.task("build-vue", ["clean"], function () {
     return gulp.src([path.join(configs.srcRoot, "**/*.vue")])
         .pipe(gulpVuePack())
-        .pipe(gulp.dest(configs.srcRoot));
+        .pipe(gulp.dest(environmentDistPath));
 });
 
 //解析atk指令
-gulp.task("atk-parse", ["clean", "build-vue"], function () {
+gulp.task("atk-parse", ["build-vue"], function () {
     return gulp.src([path.join(configs.srcRoot, "**/*.html")])
         .pipe(gulpAtk({
             directiveName: configs.atkDirectiveName,
             envSetting: envConfigs.atkEnvSettings,
             includePaths: envConfigs.atkIncludePaths || configs.atkIncludePaths,
             directiveExtensions: configs.atkDirectiveExtensions,
-            rules: rules
+            rules: rules,
+            parsers: {
+                vue: require("atk-vue-parser")
+            }
         }))
         .pipe(gulp.dest(environmentDistPath));
 });
@@ -236,7 +239,7 @@ gulp.task("babel", ["clean", "atk-parse"], function (next) {
 //构建js,包括按照配置babel和uglify
 gulp.task("minify-js", getBeforeMinifyJsTasks(), function (next) {
     gulp.src([path.join(environmentDistPath, "**/*.js")])
-        .pipe(gulpUglify())
+        .pipe(gulpUglify(configs.uglifyOptions))
         .pipe(gulp.dest(environmentDistPath))
         .on("finish", next);
 });
@@ -332,16 +335,17 @@ gulp.task("watch", function () {
                         }
 
                         if (runTasks.includes(TASK_NAME.BABEL)) {
-                            stream.pipe(gulpBabel({
-                                presets: ['es2015'],
-                                plugins: ["transform-runtime"],
-                                only: [/.+\.js$/i]
-                            }));
+                            stream.pipe(gulpBabel(configs.babelOptions));
                         }
 
-                        stream.on('finish', function () {
-                            console.log(`The grammar checking of the file \x1B[32m${fileName}\x1B[39m has passed.`);
-                        });
+                        if(runTasks.includes(TASK_NAME.MINIFY_JS)) {
+                            stream.pipe(gulpUglify(configs.uglifyOptions))
+                        }
+
+                        stream.pipe(gulp.dest(buildBasePath))
+                            .on('finish', function () {
+                                console.log(`The grammar checking of the file \x1B[32m${fileName}\x1B[39m has passed.`);
+                            });
                     } else if (extName === '.html' || extName === '.ejs' || extName === '.tpl') {
                         let rebuild = false;
                         if (tplPaths) {
@@ -354,7 +358,7 @@ gulp.task("watch", function () {
                         }
 
                         if (rebuild) {
-                            gulp.start("atk-parse");
+                            rebuildHtml();
                             return;
                         } else {
                             stream.pipe(gulpAtk({
@@ -364,25 +368,38 @@ gulp.task("watch", function () {
                                 directiveExtensions: configs.atkDirectiveExtensions,
                                 rules: rules
                             }))
+                                .pipe(gulp.dest(buildBasePath))
                                 .on('finish', function () {
                                     console.log(`The directive parsing of the file \x1B[32m${fileName}\x1B[39m has completed.`);
                                 });
                         }
                     } else if (extName === '.vue') {
-                        stream.pipe(vuePack())
-                            .pipe(gulpBabel({
-                                presets: ['es2015'],
-                                only: [/.+\.js$/i],
-                                plugins: ["transform-runtime"]
-                            }))
+                        stream.pipe(gulpVuePack())
+                            .pipe(gulpBabel(configs.babelOptions))
+                            .pipe(gulp.dest(buildBasePath))
                             .on('finish', function () {
                                 console.log(`The vue parsing of the file \x1B[32m${fileName}\x1B[39m has completed.`);
                             });
+                        //重新编译html的依赖
+                        rebuildHtml();
+                    } else if(extName === '.css' && runTasks.includes(TASK_NAME.MINIFY_CSS)) {
+                        stream.pipe(gulpCleanCss())
+                        stream.pipe(gulp.dest(buildBasePath))
+                            .on('finish', function () {
+                                console.log(`The css parsing of the file \x1B[32m${fileName}\x1B[39m has completed.`);
+                            });
+                    } else {
+                        stream.pipe(gulp.dest(buildBasePath))
+                            .on('finish', function () {
+                                console.log(`The file \x1B[32m${fileName}\x1B[39m's change has completed.`);
+                            });
                     }
                     //将结果写入到目标目录
-                    stream.pipe(gulp.dest(buildBasePath));
                 } else {
-                    stream.pipe(gulp.dest(buildBasePath));
+                    stream.pipe(gulp.dest(buildBasePath))
+                        .on('finish', function () {
+                            console.log(`The file \x1B[32m${fileName}\x1B[39m's change has completed.`);
+                        });
                 }
                 break;
             default:
@@ -640,4 +657,22 @@ function applyIgnoreJS(src, ignores, basePath) {
     }
 
     return src;
+}
+
+/**
+ *重新构建html
+ */
+function rebuildHtml() {
+    gulp.src([path.join(configs.srcRoot, "**/*.html")])
+        .pipe(gulpAtk({
+            directiveName: configs.atkDirectiveName,
+            envSetting: envConfigs.atkEnvSettings,
+            includePaths: envConfigs.atkIncludePaths || configs.atkIncludePaths,
+            directiveExtensions: configs.atkDirectiveExtensions,
+            rules: rules,
+            parsers: {
+                vue: require("atk-vue-parser")
+            }
+        }))
+        .pipe(gulp.dest(environmentDistPath));
 }
