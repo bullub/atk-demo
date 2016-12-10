@@ -112,6 +112,17 @@ const plato = require("plato");
 
 /***********************************任务声明开始**********************************/
 
+const atkConfig = {
+    directiveName: configs.atkDirectiveName,
+    envSetting: envConfigs.atkEnvSettings,
+    includePaths: envConfigs.atkIncludePaths || configs.atkIncludePaths,
+    directiveExtensions: configs.atkDirectiveExtensions,
+    rules: rules,
+    parsers: {
+        vue: require("atk-vue-parser")
+    }
+};
+
 //js脚本语法检查任务
 gulp.task("jshint", function (next) {
     let src = [`${configs.srcRoot}/**/*.js`],
@@ -202,16 +213,7 @@ gulp.task("build-vue", ["clean"], function () {
 //解析atk指令
 gulp.task("atk-parse", ["build-vue"], function () {
     return gulp.src([path.join(configs.srcRoot, "**/*.html")])
-        .pipe(gulpAtk({
-            directiveName: configs.atkDirectiveName,
-            envSetting: envConfigs.atkEnvSettings,
-            includePaths: envConfigs.atkIncludePaths || configs.atkIncludePaths,
-            directiveExtensions: configs.atkDirectiveExtensions,
-            rules: rules,
-            parsers: {
-                vue: require("atk-vue-parser")
-            }
-        }))
+        .pipe(gulpAtk(atkConfig))
         .pipe(gulp.dest(environmentDistPath));
 });
 
@@ -300,6 +302,9 @@ gulp.task("server", function (next) {
 
 //监听源码变化任务
 gulp.task("watch", function () {
+
+    let realSrcRoot = path.resolve(configs.srcRoot);
+
     gulp.watch([path.join(configs.srcRoot, '/**/*')], function (event) {
         //文件变化的类型(包括新增[added]，删除[deleted]，修改[changed])
         let type = event.type,
@@ -310,8 +315,7 @@ gulp.task("watch", function () {
             //文件扩展名
             extName = path.extname(fileName),
             //文件构建后的目标目录
-            buildFilePath = path.join(environmentDistPath, path.relative(path.resolve(configs.srcRoot), filePath)),
-            buildBasePath = path.dirname(buildFilePath);
+            buildFilePath = path.join(environmentDistPath, path.relative(realSrcRoot, filePath));
 
         switch (type) {
             case 'deleted':
@@ -323,7 +327,9 @@ gulp.task("watch", function () {
             case 'added':
             case 'changed':
             case 'renamed':
-                let stream = gulp.src(filePath);
+                let stream = gulp.src(filePath, {
+                    base: realSrcRoot
+                });
                 let stat = fs.statSync(filePath);
                 if (stat.isFile()) {
                     if (extName === '.js') {
@@ -342,7 +348,7 @@ gulp.task("watch", function () {
                             stream.pipe(gulpUglify(configs.uglifyOptions))
                         }
 
-                        stream.pipe(gulp.dest(buildBasePath))
+                        stream.pipe(gulp.dest(environmentDistPath))
                             .on('finish', function () {
                                 console.log(`The grammar checking of the file \x1B[32m${fileName}\x1B[39m has passed.`);
                             });
@@ -361,14 +367,8 @@ gulp.task("watch", function () {
                             rebuildHtml();
                             return;
                         } else {
-                            stream.pipe(gulpAtk({
-                                directiveName: configs.atkDirectiveName,
-                                envSetting: envConfigs.atkEnvSettings,
-                                includePaths: envConfigs.atkIncludePaths || configs.atkIncludePaths,
-                                directiveExtensions: configs.atkDirectiveExtensions,
-                                rules: rules
-                            }))
-                                .pipe(gulp.dest(buildBasePath))
+                            stream.pipe(gulpAtk(atkConfig))
+                                .pipe(gulp.dest(environmentDistPath))
                                 .on('finish', function () {
                                     console.log(`The directive parsing of the file \x1B[32m${fileName}\x1B[39m has completed.`);
                                 });
@@ -376,7 +376,7 @@ gulp.task("watch", function () {
                     } else if (extName === '.vue') {
                         stream.pipe(gulpVuePack())
                             .pipe(gulpBabel(configs.babelOptions))
-                            .pipe(gulp.dest(buildBasePath))
+                            .pipe(gulp.dest(environmentDistPath))
                             .on('finish', function () {
                                 console.log(`The vue parsing of the file \x1B[32m${fileName}\x1B[39m has completed.`);
                             });
@@ -384,19 +384,19 @@ gulp.task("watch", function () {
                         rebuildHtml();
                     } else if(extName === '.css' && runTasks.includes(TASK_NAME.MINIFY_CSS)) {
                         stream.pipe(gulpCleanCss())
-                        stream.pipe(gulp.dest(buildBasePath))
+                        stream.pipe(gulp.dest(environmentDistPath))
                             .on('finish', function () {
                                 console.log(`The css parsing of the file \x1B[32m${fileName}\x1B[39m has completed.`);
                             });
                     } else {
-                        stream.pipe(gulp.dest(buildBasePath))
+                        stream.pipe(gulp.dest(environmentDistPath))
                             .on('finish', function () {
                                 console.log(`The file \x1B[32m${fileName}\x1B[39m's change has completed.`);
                             });
                     }
                     //将结果写入到目标目录
                 } else {
-                    stream.pipe(gulp.dest(buildBasePath))
+                    stream.pipe(gulp.dest(environmentDistPath))
                         .on('finish', function () {
                             console.log(`The file \x1B[32m${fileName}\x1B[39m's change has completed.`);
                         });
@@ -664,15 +664,6 @@ function applyIgnoreJS(src, ignores, basePath) {
  */
 function rebuildHtml() {
     gulp.src([path.join(configs.srcRoot, "**/*.html")])
-        .pipe(gulpAtk({
-            directiveName: configs.atkDirectiveName,
-            envSetting: envConfigs.atkEnvSettings,
-            includePaths: envConfigs.atkIncludePaths || configs.atkIncludePaths,
-            directiveExtensions: configs.atkDirectiveExtensions,
-            rules: rules,
-            parsers: {
-                vue: require("atk-vue-parser")
-            }
-        }))
+        .pipe(gulpAtk(atkConfig))
         .pipe(gulp.dest(environmentDistPath));
 }
